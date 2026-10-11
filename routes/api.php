@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AdminUserController;
+use App\Http\Controllers\Admin\AttachmentController;
 use App\Http\Controllers\Admin\AttributeController;
 use App\Http\Controllers\Admin\AiContextController;
 use App\Http\Controllers\Admin\CampaignInformationController;
@@ -85,6 +86,15 @@ Route::prefix('admin')
         // ── Image routes ──────────────────────────
         Route::get('/images', [ImageController::class, 'index']);
         Route::post('/images', [ImageController::class, 'store']);
+        Route::delete('/images/{id}', [ImageController::class, 'destroy']);
+        Route::post('/images/{id}/replace', [ImageController::class, 'replace']);
+        Route::post('/ai-contexts/{id}/images', [ImageController::class, 'storeForContext']);
+
+        // ── Attachment routes ──────────────────────
+        Route::delete('/attachments/{id}', [AttachmentController::class, 'destroy']);
+        Route::post('/attachments/{id}/replace', [AttachmentController::class, 'replace']);
+        Route::put('/attachments/{id}', [AttachmentController::class, 'update']);
+        Route::post('/ai-contexts/{id}/attachments', [AttachmentController::class, 'storeForContext']);
 
         // ── AI Context routes ─────────────────────
         Route::get('/ai-contexts', [AiContextController::class, 'index']);

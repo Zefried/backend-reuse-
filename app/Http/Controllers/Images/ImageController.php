@@ -3,9 +3,12 @@
 namespace App\Http\Controllers\Images;
 
 use App\Http\Controllers\Controller;
+use App\Models\AiContext;
 use App\Models\Image;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Throwable;
@@ -172,5 +175,164 @@ class ImageController extends Controller
                 'message' => 'Failed to upload images.',
             ], 500);
         }
+    }
+
+    /**
+     * Delete a single image.
+     */
+    public function destroy(int $id)
+    {
+        $image = Image::find($id);
+
+        if (!$image) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Image not found.',
+                'code'    => 404,
+            ], 404);
+        }
+
+        if ($image->image_url) {
+            Storage::disk('public')->delete($image->image_url);
+        }
+
+        $image->delete();
+
+        return response()->json([
+            'status'  => true,
+            'message' => 'Image deleted successfully.',
+            'code'    => 200,
+        ], 200);
+    }
+
+    /**
+     * Replace an existing image with a new image file.
+     */
+    public function replace(Request $request, int $id)
+    {
+        $imageRecord = Image::find($id);
+
+        if (!$imageRecord) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Image not found.',
+                'code'    => 404,
+            ], 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'image' => 'required|image|max:5120',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status'  => false,
+                'message' => $validator->errors()->first(),
+                'code'    => 422,
+            ], 422);
+        }
+
+        $newImage = $request->file('image');
+        $imageHash = hash_file('sha256', $newImage->getRealPath());
+
+        // Check duplicate
+        $exists = Image::where('image_hash', $imageHash)
+            ->where('id', '!=', $imageRecord->id)
+            ->exists();
+
+        if ($exists) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'This image has already been uploaded.',
+                'code'    => 422,
+            ], 422);
+        }
+
+        // Delete old file
+        if ($imageRecord->image_url) {
+            Storage::disk('public')->delete($imageRecord->image_url);
+        }
+
+        // Store new file
+        $extension = $newImage->getClientOriginalExtension();
+        $filename = Str::uuid() . '.' . $extension;
+        $path = $newImage->storeAs('images', $filename, 'public');
+
+        $imageRecord->update([
+            'image_url'  => $path,
+            'image_name' => $newImage->getClientOriginalName(),
+            'image_hash' => $imageHash,
+        ]);
+
+        return response()->json([
+            'status'  => true,
+            'message' => 'Image replaced successfully.',
+            'data'    => $imageRecord,
+            'code'    => 200,
+        ], 200);
+    }
+
+    /**
+     * Store new images for an existing AI Context.
+     */
+    public function storeForContext(Request $request, int $id)
+    {
+        $record = AiContext::find($id);
+
+        if (!$record) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Context not found.',
+                'code'    => 404,
+            ], 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'images'   => 'required|array|min:1',
+            'images.*' => 'image|max:5120',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status'  => false,
+                'message' => $validator->errors()->first(),
+                'code'    => 422,
+            ], 422);
+        }
+
+        $uploaded = [];
+        $duplicates = [];
+
+        foreach ($request->file('images') as $image) {
+            $imageHash = hash_file('sha256', $image->getRealPath());
+
+            $exists = Image::where('image_hash', $imageHash)->exists();
+            if ($exists) {
+                $duplicates[] = $image->getClientOriginalName();
+                continue;
+            }
+
+            $extension = $image->getClientOriginalExtension();
+            $filename = Str::uuid() . '.' . $extension;
+            $path = $image->storeAs('images', $filename, 'public');
+
+            $uploaded[] = Image::create([
+                'imageable_id'   => $record->id,
+                'imageable_type' => AiContext::class,
+                'image_url'      => $path,
+                'image_name'     => $image->getClientOriginalName(),
+                'image_hash'     => $imageHash,
+                'sort_order'     => Image::where('imageable_id', $record->id)->where('imageable_type', AiContext::class)->count(),
+                'is_primary'     => Image::where('imageable_id', $record->id)->where('imageable_type', AiContext::class)->count() === 0,
+            ]);
+        }
+
+        return response()->json([
+            'status'     => true,
+            'message'    => 'Images uploaded.',
+            'data'       => $uploaded,
+            'duplicates' => $duplicates,
+            'code'       => 201,
+        ], 201);
     }
 }

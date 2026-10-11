@@ -28,4 +28,9 @@ class AiContext extends Model
     {
         return $this->morphMany(Image::class, 'imageable');
     }
+
+    public function attachments()
+    {
+        return $this->morphMany(Attachment::class, 'attachable');
+    }
 }
