@@ -5,7 +5,6 @@ use App\Http\Controllers\Admin\AttachmentController;
 use App\Http\Controllers\Admin\AttributeController;
 use App\Http\Controllers\Admin\AiContextController;
 use App\Http\Controllers\Admin\CampaignInformationController;
-use App\Http\Controllers\Admin\ChatController;
 use App\Http\Controllers\Admin\AttributeFieldController;
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\ServiceController;
@@ -28,8 +27,7 @@ Route::post('/logout', [AuthController::class, 'logout'])
     ->middleware('auth:sanctum');
 
 
-Route::post('/public/chat', [ChatController::class, 'publicChat']);
-Route::post('/public/chat/init', [ChatController::class, 'publicChatInit']);
+
 
 
 Route::prefix('admin')
@@ -109,8 +107,7 @@ Route::prefix('admin')
         Route::put('/campaigns/{id}', [CampaignInformationController::class, 'update']);
         Route::delete('/campaigns/{id}', [CampaignInformationController::class, 'destroy']);
 
-        // ── Chat routes ───────────────────────────
-        Route::post('/chat', [ChatController::class, 'handleChat']);
+
 
         // ── Lead Qualification routes ────────────────
         Route::post('/lead-qualifications/services', [\App\Http\Controllers\Admin\LeadQualificationController::class, 'getServices']);
