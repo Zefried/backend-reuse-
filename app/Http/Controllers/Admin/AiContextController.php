@@ -95,7 +95,8 @@ class AiContextController extends Controller
 
             // 1. Store images
             if ($request->hasFile('images')) {
-                foreach ($request->file('images') as $image) {
+                $imageTitles = $request->input('images_titles', []);
+                foreach ($request->file('images') as $i => $image) {
                     $imageHash = hash_file('sha256', $image->getRealPath());
 
                     $extension = $image->getClientOriginalExtension();
@@ -103,11 +104,16 @@ class AiContextController extends Controller
                     $path = $image->storeAs('images', $filename, 'public');
                     $uploadedFiles[] = ['disk' => 'public', 'path' => $path];
 
+                    $customTitle = is_array($imageTitles) && !empty($imageTitles[$i]) 
+                        ? trim($imageTitles[$i]) 
+                        : pathinfo($image->getClientOriginalName(), PATHINFO_FILENAME);
+
                     Image::create([
                         'imageable_id'   => $record->id,
                         'imageable_type' => 'App\Models\AiContext',
                         'image_url'      => $path,
                         'image_name'     => $image->getClientOriginalName(),
+                        'title'          => $customTitle,
                         'image_hash'     => $imageHash,
                         'sort_order'     => Image::where('imageable_id', $record->id)->where('imageable_type', 'App\Models\AiContext')->count(),
                         'is_primary'     => Image::where('imageable_id', $record->id)->where('imageable_type', 'App\Models\AiContext')->count() === 0,
@@ -145,18 +151,23 @@ class AiContextController extends Controller
     {
         // 1. Process PDF documents
         if ($request->hasFile('documents')) {
-            foreach ($request->file('documents') as $doc) {
+            $docTitles = $request->input('documents_titles', []);
+            foreach ($request->file('documents') as $i => $doc) {
                 $docHash = hash_file('sha256', $doc->getRealPath());
                 $extension = $doc->getClientOriginalExtension();
                 $filename = Str::uuid() . '.' . $extension;
                 $path = $doc->storeAs('attachments', $filename, 'public');
                 $uploadedFiles[] = ['disk' => 'public', 'path' => $path];
 
+                $customTitle = is_array($docTitles) && !empty($docTitles[$i])
+                    ? trim($docTitles[$i])
+                    : pathinfo($doc->getClientOriginalName(), PATHINFO_FILENAME);
+
                 Attachment::create([
                     'attachable_id'   => $record->id,
                     'attachable_type' => 'App\Models\AiContext',
                     'type'            => 'pdf',
-                    'title'           => pathinfo($doc->getClientOriginalName(), PATHINFO_FILENAME),
+                    'title'           => $customTitle,
                     'url'             => $path,
                     'file_name'       => $doc->getClientOriginalName(),
                     'file_size'       => $doc->getSize(),

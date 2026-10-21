@@ -243,7 +243,8 @@ class AttachmentController extends Controller
 
         // 1. Process documents
         if ($request->hasFile('documents')) {
-            foreach ($request->file('documents') as $doc) {
+            $docTitles = $request->input('documents_titles', []);
+            foreach ($request->file('documents') as $i => $doc) {
                 $docHash = hash_file('sha256', $doc->getRealPath());
 
                 $exists = Attachment::where('file_hash', $docHash)->exists();
@@ -259,11 +260,15 @@ class AttachmentController extends Controller
                 $filename = Str::uuid() . '.' . $extension;
                 $path = $doc->storeAs('attachments', $filename, 'public');
 
+                $customTitle = is_array($docTitles) && !empty($docTitles[$i])
+                    ? trim($docTitles[$i])
+                    : pathinfo($doc->getClientOriginalName(), PATHINFO_FILENAME);
+
                 $created[] = Attachment::create([
                     'attachable_id'   => $record->id,
                     'attachable_type' => AiContext::class,
                     'type'            => 'pdf',
-                    'title'           => pathinfo($doc->getClientOriginalName(), PATHINFO_FILENAME),
+                    'title'           => $customTitle,
                     'url'             => $path,
                     'file_name'       => $doc->getClientOriginalName(),
                     'file_size'       => $doc->getSize(),

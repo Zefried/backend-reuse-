@@ -17,6 +17,7 @@ return new class extends Migration
             $table->string('imageable_type')->index();
             $table->string('image_url');
             $table->string('image_name');
+            $table->string('title')->nullable();
             $table->string('image_hash')->index();
             $table->integer('sort_order')->default(0);
             $table->boolean('is_primary')->default(false);

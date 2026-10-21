@@ -258,15 +258,57 @@ class ImageController extends Controller
         $filename = Str::uuid() . '.' . $extension;
         $path = $newImage->storeAs('images', $filename, 'public');
 
+        $title = $request->input('title') ?: ($imageRecord->title ?: pathinfo($newImage->getClientOriginalName(), PATHINFO_FILENAME));
+
         $imageRecord->update([
             'image_url'  => $path,
             'image_name' => $newImage->getClientOriginalName(),
+            'title'      => $title,
             'image_hash' => $imageHash,
         ]);
 
         return response()->json([
             'status'  => true,
             'message' => 'Image replaced successfully.',
+            'data'    => $imageRecord,
+            'code'    => 200,
+        ], 200);
+    }
+
+    /**
+     * Update image title.
+     */
+    public function update(Request $request, int $id)
+    {
+        $imageRecord = Image::find($id);
+
+        if (!$imageRecord) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Image not found.',
+                'code'    => 404,
+            ], 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'title' => 'required|string|max:255',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status'  => false,
+                'message' => $validator->errors()->first(),
+                'code'    => 422,
+            ], 422);
+        }
+
+        $imageRecord->update([
+            'title' => trim($request->input('title')),
+        ]);
+
+        return response()->json([
+            'status'  => true,
+            'message' => 'Image title updated successfully.',
             'data'    => $imageRecord,
             'code'    => 200,
         ], 200);
@@ -303,7 +345,8 @@ class ImageController extends Controller
         $uploaded = [];
         $duplicates = [];
 
-        foreach ($request->file('images') as $image) {
+        $imageTitles = $request->input('images_titles', []);
+        foreach ($request->file('images') as $i => $image) {
             $imageHash = hash_file('sha256', $image->getRealPath());
 
             $exists = Image::where('image_hash', $imageHash)->exists();
@@ -316,11 +359,16 @@ class ImageController extends Controller
             $filename = Str::uuid() . '.' . $extension;
             $path = $image->storeAs('images', $filename, 'public');
 
+            $customTitle = is_array($imageTitles) && !empty($imageTitles[$i]) 
+                ? trim($imageTitles[$i]) 
+                : pathinfo($image->getClientOriginalName(), PATHINFO_FILENAME);
+
             $uploaded[] = Image::create([
                 'imageable_id'   => $record->id,
                 'imageable_type' => AiContext::class,
                 'image_url'      => $path,
                 'image_name'     => $image->getClientOriginalName(),
+                'title'          => $customTitle,
                 'image_hash'     => $imageHash,
                 'sort_order'     => Image::where('imageable_id', $record->id)->where('imageable_type', AiContext::class)->count(),
                 'is_primary'     => Image::where('imageable_id', $record->id)->where('imageable_type', AiContext::class)->count() === 0,

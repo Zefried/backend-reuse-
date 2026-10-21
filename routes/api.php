@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\ServiceController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Images\ImageController;
+use App\Http\Controllers\ChatEngine\ChatEnginerController;
 use App\Http\Middleware\CheckAdmin;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -85,6 +86,7 @@ Route::prefix('admin')
         Route::get('/images', [ImageController::class, 'index']);
         Route::post('/images', [ImageController::class, 'store']);
         Route::delete('/images/{id}', [ImageController::class, 'destroy']);
+        Route::put('/images/{id}', [ImageController::class, 'update']);
         Route::post('/images/{id}/replace', [ImageController::class, 'replace']);
         Route::post('/ai-contexts/{id}/images', [ImageController::class, 'storeForContext']);
 
@@ -107,10 +109,15 @@ Route::prefix('admin')
         Route::put('/campaigns/{id}', [CampaignInformationController::class, 'update']);
         Route::delete('/campaigns/{id}', [CampaignInformationController::class, 'destroy']);
 
-
-
         // ── Lead Qualification routes ────────────────
         Route::post('/lead-qualifications/services', [\App\Http\Controllers\Admin\LeadQualificationController::class, 'getServices']);
         Route::post('/lead-qualifications/save', [\App\Http\Controllers\Admin\LeadQualificationController::class, 'saveQualifications']);
         Route::delete('/lead-qualifications/{id}', [\App\Http\Controllers\Admin\LeadQualificationController::class, 'destroy']);
     });
+
+// ── Public Chat routes ────────────────────────
+Route::prefix('public/chat')->group(function () {
+    Route::post('/session/init', [ChatEnginerController::class, 'initSession']);
+    Route::post('/init', [ChatEnginerController::class, 'initSession']);
+});
+

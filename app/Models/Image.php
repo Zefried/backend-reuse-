@@ -11,6 +11,7 @@ class Image extends Model
         'imageable_type',
         'image_url',
         'image_name',
+        'title',
         'image_hash',
         'sort_order',
         'is_primary',
