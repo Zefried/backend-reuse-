@@ -5,8 +5,8 @@ use App\Http\Controllers\Admin\AttachmentController;
 use App\Http\Controllers\Admin\AttributeController;
 use App\Http\Controllers\Admin\AiContextController;
 use App\Http\Controllers\Admin\CampaignInformationController;
-use App\Http\Controllers\Admin\AttributeFieldController;
 use App\Http\Controllers\Admin\CategoryController;
+use App\Http\Controllers\Admin\CatalogueController;
 use App\Http\Controllers\Admin\ServiceController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Images\ImageController;
@@ -37,9 +37,7 @@ Route::prefix('admin')
 
         // ── Bulk API Routes ───────────────────────────
         Route::post('/services/bulk', [ServiceController::class, 'bulkStore']);
-        Route::post('/attributes/bulk', [AttributeController::class, 'bulkStore']);
         Route::delete('/services/bulk', [ServiceController::class, 'bulkDestroy']);
-        Route::delete('/attributes/bulk', [AttributeController::class, 'bulkDestroy']);
 
         // ── User routes ───────────────────────────
         Route::post('/users', [AdminUserController::class, 'store']);
@@ -53,13 +51,9 @@ Route::prefix('admin')
         Route::delete('/businesses/{id}', [\App\Http\Controllers\BusinessController::class, 'destroy']);
         Route::post('/businesses/check', [\App\Http\Controllers\BusinessController::class, 'checkBusiness']);
 
-        // ── Category routes ───────────────────────
+        // ── Preserved Category lookup routes (for Business, AI Context & Playground dropdowns) ───
         Route::get('/categories/flat', [CategoryController::class, 'flatList']);
         Route::get('/categories', [CategoryController::class, 'index']);
-        Route::post('/categories', [CategoryController::class, 'store']);
-        Route::put('/categories/{id}', [CategoryController::class, 'update']);
-        Route::patch('/categories/{id}/toggle', [CategoryController::class, 'toggleStatus']);
-        Route::delete('/categories/{id}', [CategoryController::class, 'destroy']);
 
         // ── Service routes ────────────────────────
         Route::get('/services', [ServiceController::class, 'index']);
@@ -68,19 +62,8 @@ Route::prefix('admin')
         Route::patch('/services/{id}/toggle', [ServiceController::class, 'toggleStatus']);
         Route::delete('/services/{id}', [ServiceController::class, 'destroy']);
 
-        // ── Attribute routes ──────────────────────
+        // ── Preserved Attribute lookup routes (for AI Context & Playground dropdowns) ───
         Route::get('/attributes', [AttributeController::class, 'index']);
-        Route::post('/attributes', [AttributeController::class, 'store']);
-        Route::put('/attributes/{id}', [AttributeController::class, 'update']);
-        Route::patch('/attributes/{id}/toggle', [AttributeController::class, 'toggleStatus']);
-        Route::delete('/attributes/{id}', [AttributeController::class, 'destroy']);
-
-        // ── Attribute Field routes ────────────────
-        Route::get('/attribute-fields', [AttributeFieldController::class, 'index']);          // ?attribute_id=1
-        Route::post('/attribute-fields', [AttributeFieldController::class, 'store']);
-        Route::put('/attribute-fields/{id}', [AttributeFieldController::class, 'update']);
-        Route::patch('/attribute-fields/{id}/toggle', [AttributeFieldController::class, 'toggleStatus']);
-        Route::delete('/attribute-fields/{id}', [AttributeFieldController::class, 'destroy']);
 
         // ── Image routes ──────────────────────────
         Route::get('/images', [ImageController::class, 'index']);
@@ -113,6 +96,48 @@ Route::prefix('admin')
         Route::post('/lead-qualifications/services', [\App\Http\Controllers\Admin\LeadQualificationController::class, 'getServices']);
         Route::post('/lead-qualifications/save', [\App\Http\Controllers\Admin\LeadQualificationController::class, 'saveQualifications']);
         Route::delete('/lead-qualifications/{id}', [\App\Http\Controllers\Admin\LeadQualificationController::class, 'destroy']);
+
+        // ── Catalogue Module routes ───────────────────
+        Route::prefix('catalogue')->group(function () {
+            // Niches
+            Route::get('/niches', [CatalogueController::class, 'listNiches']);
+            Route::post('/niches', [CatalogueController::class, 'createNiche']);
+            Route::put('/niches/{id}', [CatalogueController::class, 'updateNiche']);
+            Route::patch('/niches/{id}/toggle', [CatalogueController::class, 'toggleNiche']);
+            Route::delete('/niches/{id}', [CatalogueController::class, 'deleteNiche']);
+
+            // Businesses under Niche
+            Route::get('/businesses/all', [CatalogueController::class, 'listAllBusinesses']);
+            Route::get('/niches/{nicheId}/businesses', [CatalogueController::class, 'listBusinessesByNiche']);
+            Route::post('/niches/{nicheId}/businesses', [CatalogueController::class, 'createBusinessUnderNiche']);
+            Route::post('/niches/{nicheId}/businesses/assign', [CatalogueController::class, 'assignBusinessToNiche']);
+            Route::delete('/niches/{nicheId}/businesses/{businessId}/unlink', [CatalogueController::class, 'unlinkBusinessFromNiche']);
+
+            // Services
+            Route::get('/businesses/{businessId}/services', [CatalogueController::class, 'listServicesByBusiness']);
+            Route::post('/businesses/{businessId}/services', [CatalogueController::class, 'createService']);
+            Route::put('/services/{id}', [CatalogueController::class, 'updateService']);
+            Route::delete('/services/{id}', [CatalogueController::class, 'deleteService']);
+
+            // Categories
+            Route::get('/services/{serviceId}/categories', [CatalogueController::class, 'listCategoriesByService']);
+            Route::post('/services/{serviceId}/categories', [CatalogueController::class, 'createCategory']);
+            Route::put('/categories/{id}', [CatalogueController::class, 'updateCategory']);
+            Route::delete('/categories/{id}', [CatalogueController::class, 'deleteCategory']);
+
+            // Designs
+            Route::get('/designs', [CatalogueController::class, 'listDesigns']);
+            Route::get('/designs/search', [CatalogueController::class, 'searchDesigns']);
+            Route::get('/designs/{id}', [CatalogueController::class, 'getDesign']);
+            Route::post('/designs', [CatalogueController::class, 'createDesign']);
+            Route::put('/designs/{id}', [CatalogueController::class, 'updateDesign']);
+            Route::delete('/designs/{id}', [CatalogueController::class, 'deleteDesign']);
+
+            // Specifications
+            Route::post('/designs/{designId}/specifications', [CatalogueController::class, 'addSpecification']);
+            Route::put('/specifications/{id}', [CatalogueController::class, 'updateSpecification']);
+            Route::delete('/specifications/{id}', [CatalogueController::class, 'deleteSpecification']);
+        });
     });
 
 // ── Public Chat routes ────────────────────────
