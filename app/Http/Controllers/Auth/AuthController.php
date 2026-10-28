@@ -4,11 +4,11 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Services\AuthService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class AuthController extends Controller
 {
-    
     private AuthService $auth;
 
     public function __construct(AuthService $auth)
@@ -16,35 +16,43 @@ class AuthController extends Controller
         $this->auth = $auth;
     }
 
-    public function login(Request $request)
+    public function login(Request $request): JsonResponse
     {
         $result = $this->auth->login($request->all());
 
         return response()->json(
             $result,
-            $result['status'] ? 200 : 401
+            $result['code'] ?? ($result['status'] ? 200 : 400)
         );
     }
 
-    public function register(Request $request)
-    {
-
-        $result = $this->auth->register($request->all());
-
-        return response()->json($result);
-    }
-
-    public function logout(Request $request)
+    public function logout(Request $request): JsonResponse
     {
         $result = $this->auth->logout($request->user());
 
-        return response()->json([
-            'status' => $result['status'],
-            'message' => $result['message'],
-        ], $result['code']);
+        return response()->json(
+            $result,
+            $result['code'] ?? 200
+        );
+    }
+
+    public function createUser(Request $request): JsonResponse
+    {
+        $result = $this->auth->createUserByAdmin($request->all());
+
+        return response()->json(
+            $result,
+            $result['code'] ?? ($result['status'] ? 201 : 400)
+        );
+    }
+
+    public function listUsers(): JsonResponse
+    {
+        $result = $this->auth->listUsers();
+
+        return response()->json(
+            $result,
+            $result['code'] ?? 200
+        );
     }
 }
-
-
-
-

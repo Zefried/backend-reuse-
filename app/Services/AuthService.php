@@ -3,48 +3,53 @@
 namespace App\Services;
 
 use App\Models\User;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
+use Throwable;
 
 class AuthService
 {
+    /**
+     * Authenticate user with email or phone and password.
+     */
     public function login(array $data): array
     {
         try {
-
             if (empty($data['email']) && empty($data['phone'])) {
                 return [
-                    'status' => false,
-                    'message' => 'Email or phone is required',
-                    'code' => 422
+                    'status'  => false,
+                    'message' => 'Email or phone is required.',
+                    'code'    => 422,
                 ];
             }
 
             $validator = Validator::make($data, [
-                'email' => 'nullable|email',
-                'phone' => 'nullable|string|max:20',
+                'email'    => 'nullable|string',
+                'phone'    => 'nullable|string|max:20',
                 'password' => 'required|string',
             ]);
 
             if ($validator->fails()) {
                 return [
-                    'status' => false,
+                    'status'  => false,
                     'message' => $validator->errors()->first(),
-                    'code' => 422
+                    'code'    => 422,
                 ];
             }
 
-            if (!empty($data['email'])) {
-                $user = User::where('email', $data['email'])->first();
-            } else {
-                $user = User::where('phone', $data['phone'])->first();
-            }
+            $identifier = $data['email'] ?? $data['phone'] ?? null;
+
+            $user = User::where(function ($query) use ($identifier) {
+                $query->where('email', $identifier)
+                      ->orWhere('phone', $identifier);
+            })->first();
 
             if (!$user || !Hash::check($data['password'], $user->password)) {
                 return [
-                    'status' => false,
-                    'message' => 'Invalid credentials',
-                    'code' => 401
+                    'status'  => false,
+                    'message' => 'Invalid credentials.',
+                    'code'    => 401,
                 ];
             }
 
@@ -52,148 +57,127 @@ class AuthService
 
             return [
                 'status' => true,
-                'data' => [
-                    'user' => $user,
-                    'token' => $token
+                'data'   => [
+                    'user'  => $user,
+                    'token' => $token,
                 ],
-                'code' => 200
+                'code'   => 200,
             ];
-
-        } catch (\Exception $e) {
+        } catch (Throwable $e) {
+            Log::error('AuthService::login error: ' . $e->getMessage());
             return [
-                'status' => false,
-                'message' => $e->getMessage(),
-                'code' => 500
+                'status'  => false,
+                'message' => 'An error occurred during login. Please try again.',
+                'code'    => 500,
             ];
         }
     }
 
-    public function logout($user): array
+    /**
+     * Revoke current access token.
+     */
+    public function logout(?User $user): array
     {
         try {
-            $user->currentAccessToken()->delete();
+            if ($user && method_exists($user, 'currentAccessToken') && $user->currentAccessToken()) {
+                $user->currentAccessToken()->delete();
+            }
 
             return [
-                'status' => true,
-                'message' => 'Logged out successfully',
-                'code' => 200
+                'status'  => true,
+                'message' => 'Logged out successfully.',
+                'code'    => 200,
             ];
-        } catch (\Exception $e) {
+        } catch (Throwable $e) {
+            Log::error('AuthService::logout error: ' . $e->getMessage());
             return [
-                'status' => false,
-                'message' => $e->getMessage(),
-                'code' => 500
+                'status'  => false,
+                'message' => 'Failed to logout. Please try again.',
+                'code'    => 500,
             ];
         }
     }
 
-
-    public function register(array $data): array
+    /**
+     * Create a user by an Admin with a selected role (sub_admin or user).
+     */
+    public function createUserByAdmin(array $data): array
     {
         try {
-
             if (empty($data['email']) && empty($data['phone'])) {
                 return [
-                    'status' => false,
-                    'message' => 'Email or phone is required',
-                    'code' => 422
+                    'status'  => false,
+                    'message' => 'Either email or phone is required.',
+                    'code'    => 422,
                 ];
             }
 
             $validator = Validator::make($data, [
-                'name' => 'required|string|max:255',
-                'email' => 'nullable|email|max:255|unique:users,email',
-                'phone' => 'nullable|string|max:20|unique:users,phone',
-                'password' => 'required|string|min:8',
+                'name'     => 'required|string|max:255',
+                'email'    => 'nullable|email|max:255|unique:users,email',
+                'phone'    => 'nullable|string|max:20|unique:users,phone',
+                'password' => 'required|string|min:6',
+                'role'     => 'required|string|in:sub_admin,user',
             ]);
 
             if ($validator->fails()) {
                 return [
-                    'status' => false,
+                    'status'  => false,
                     'message' => $validator->errors()->first(),
-                    'code' => 422
+                    'code'    => 422,
                 ];
             }
 
             $validated = $validator->validated();
 
             $user = User::create([
-                'name' => $validated['name'],
-                'email' => $validated['email'] ?? null,
-                'phone' => $validated['phone'] ?? null,
+                'name'     => $validated['name'],
+                'email'    => $validated['email'] ?? null,
+                'phone'    => $validated['phone'] ?? null,
                 'password' => Hash::make($validated['password']),
-                'role' => 'user',
+                'role'     => $validated['role'],
             ]);
 
             return [
-                'status' => true,
-                'message' => 'User registered successfully',
-                'data' => [
+                'status'  => true,
+                'message' => 'User created successfully.',
+                'data'    => [
                     'user' => $user,
                 ],
-                'code' => 201
+                'code'    => 201,
             ];
-            } catch (\Exception $e) {
-                return [
-                    'status' => false,
-                    'message' => $e->getMessage(),
-                    'code' => 500
-                ];
-            }
+        } catch (Throwable $e) {
+            Log::error('AuthService::createUserByAdmin error: ' . $e->getMessage());
+            return [
+                'status'  => false,
+                'message' => 'Failed to create user. Please try again.',
+                'code'    => 500,
+            ];
+        }
     }
 
-
-    public function createAdminUser(array $data): array
+    /**
+     * List all users created (for Admin Panel view).
+     */
+    public function listUsers(): array
     {
         try {
-
-            if (empty($data['email']) && empty($data['phone'])) {
-                return [
-                    'status' => false,
-                    'message' => 'Email or phone is required',
-                    'code' => 422
-                ];
-            }
-
-            $validator = Validator::make($data, [
-                'name' => 'required|string|max:255',
-                'email' => 'nullable|email|max:255|unique:users,email',
-                'phone' => 'nullable|string|max:20|unique:users,phone',
-                'password' => 'required|string|min:8',
-                'role' => 'required|in:hotel_admin,vehicle_admin,sub_admin',
-            ]);
-
-            if ($validator->fails()) {
-                return [
-                    'status' => false,
-                    'message' => $validator->errors()->first(),
-                    'code' => 422
-                ];
-            }
-
-            $validated = $validator->validated();
-
-            $user = User::create([
-                'name' => $validated['name'],
-                'email' => $validated['email'] ?? null,
-                'phone' => $validated['phone'] ?? null,
-                'password' => Hash::make($validated['password']),
-                'role' => $validated['role'],
-            ]);
+            $users = User::select('id', 'name', 'email', 'phone', 'role', 'created_at')
+                ->where('role', '!=', 'admin')
+                ->orderBy('id', 'desc')
+                ->get();
 
             return [
                 'status' => true,
-                'message' => 'User created successfully',
-                'data' => [
-                    'user' => $user,
-                ],
-                'code' => 201
+                'data'   => $users,
+                'code'   => 200,
             ];
-        } catch (\Exception $e) {
+        } catch (Throwable $e) {
+            Log::error('AuthService::listUsers error: ' . $e->getMessage());
             return [
-                'status' => false,
-                'message' => $e->getMessage(),
-                'code' => 500
+                'status'  => false,
+                'message' => 'Failed to fetch users.',
+                'code'    => 500,
             ];
         }
     }

@@ -22,7 +22,6 @@ class User extends Authenticatable
     protected $fillable = [
         'business_id',
         'niche_id',
-        'category_id',
         'name',
         'email',
         'phone',
@@ -54,29 +53,9 @@ class User extends Authenticatable
         ];
     }
 
-    public function category()
-    {
-        return $this->belongsTo(Category::class);
-    }
-
     public function niche()
     {
         return $this->belongsTo(Niche::class, 'niche_id');
-    }
-
-    public function catalogueServices()
-    {
-        return $this->hasMany(CatalogueService::class, 'business_id');
-    }
-
-    public function catalogueCategories()
-    {
-        return $this->hasMany(CatalogueCategory::class, 'business_id');
-    }
-
-    public function designs()
-    {
-        return $this->hasMany(Design::class, 'business_id');
     }
 
     public function getBusinessNameAttribute()
