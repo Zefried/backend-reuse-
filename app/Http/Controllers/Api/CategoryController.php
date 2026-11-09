@@ -145,7 +145,7 @@ class CategoryController extends Controller
      */
     public function destroy($id): JsonResponse
     {
-        $category = Category::withCount(['children', 'products'])->findOrFail($id);
+        $category = Category::withCount(['children', 'products', 'subCategoryProducts'])->findOrFail($id);
 
         if ($category->children_count > 0) {
             return response()->json([
@@ -154,10 +154,11 @@ class CategoryController extends Controller
             ], 422);
         }
 
-        if ($category->products_count > 0) {
+        $totalProducts = $category->products_count + $category->sub_category_products_count;
+        if ($totalProducts > 0) {
             return response()->json([
                 'status' => false,
-                'message' => "Cannot delete '{$category->name}': it has {$category->products_count} active products assigned. Reassign products first.",
+                'message' => "Cannot delete '{$category->name}': it has {$totalProducts} active products assigned. Reassign products first.",
             ], 422);
         }
 
